@@ -3,7 +3,42 @@
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  if (status == ESP_NOW_SEND_SUCCESS) {
+    Serial.println("Delivery Success");
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(5);
+    digitalWrite(LED_BUILTIN, LOW);
+  } else
+  {
+    Serial.println("Delivery Fail");
+  }
+}
+
+void IRAM_ATTR startCountTime() {
+  portENTER_CRITICAL(&synch);
+  if ((millis() - lastDebounce) > debounceTime) {
+    if (started == false) {
+      json["macOrigin"] = myMac;
+      json["origin"] = BOARD_NUM;
+      json["timeMicros"] = micros();
+      json["coreTemp"] = temperatureRead();
+      json["type"] = START_COUNT_TYPE;
+      serializeJson(json, message.json, sizeof(message.json));
+      esp_err_t result = esp_now_send(masterAddress, (uint8_t *) &message, sizeof(message));
+      started = !started;
+    }else {
+      json["macOrigin"] = myMac;
+      json["origin"] = BOARD_NUM;
+      json["timeMicros"] = micros();
+      json["coreTemp"] = temperatureRead();
+      json["type"] = END_COUNT_TYPE;
+      serializeJson(json, message.json, sizeof(message.json));
+      esp_err_t result = esp_now_send(masterAddress, (uint8_t *) &message, sizeof(message));
+      started = !started;
+    }
+    lastDebounce = millis();
+  }
+  portEXIT_CRITICAL(&synch);
 }
 
 void setup() {
@@ -27,16 +62,13 @@ void setup() {
     Serial.println("Failed to add peer");
     return;
   }
+  
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(START_PIN, INPUT_PULLDOWN);
+  attachInterrupt(START_PIN, startCountTime, RISING);
 }
  
 void loop() {   
   esp_err_t result = sendHeartBeat();
-
-  if (result == ESP_OK) {
-    Serial.println("Sent with success");
-  }
-  else {
-    Serial.println("Error sending the data");
-  }
-  delay(2000);
+  delay(10000);
 }

@@ -2,10 +2,19 @@
 #include <esp_now.h>
 #include <ArduinoJson.h>
 
-#define BOARD_NUM 1;
-#define HEARTBEAT_TYPE 1;
-#define FUNCTIONAL_TYPE 2;
-#define MANAGER_TYPE 3;
+#define BOARD_NUM 2
+#define HEARTBEAT_TYPE 1
+#define START_COUNT_TYPE 2
+#define END_COUNT_TYPE 3
+#define MANAGER_TYPE 4
+#define START_PIN 18
+#define ON_BOARD_LED 2
+
+const unsigned long debounceTime = 500;
+volatile unsigned long lastDebounce = 0;
+volatile bool started = false;
+
+portMUX_TYPE synch = portMUX_INITIALIZER_UNLOCKED;
 
 JsonDocument json;
 uint8_t masterAddress[] = {0x24, 0x6F, 0x28, 0x79, 0xD7, 0xC4};
@@ -24,7 +33,7 @@ esp_now_peer_info_t peerInfo;
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status);
 
-esp_err_t sendHeartBeat(){
+esp_err_t sendHeartBeat() {
   json["macOrigin"] = myMac;
   json["origin"] = BOARD_NUM;
   json["timeMicros"] = micros();
