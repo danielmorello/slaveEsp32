@@ -16,27 +16,33 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 
 void IRAM_ATTR startCountTime() {
   portENTER_CRITICAL(&synch);
-  if ((millis() - lastDebounce) > debounceTime) {
+  unsigned long now = micros();
+  if ((micros() - lastDebounce) > debounceTime) {
     if (started == false) {
       json["macOrigin"] = myMac;
       json["origin"] = BOARD_NUM;
-      json["timeMicros"] = micros();
+      json["timeMicros"] = now;
       json["coreTemp"] = temperatureRead();
       json["type"] = START_COUNT_TYPE;
+      json["experiment"] = experiment;
+      json["position"] = POSITION;
       serializeJson(json, message.json, sizeof(message.json));
       esp_err_t result = esp_now_send(masterAddress, (uint8_t *) &message, sizeof(message));
       started = !started;
     }else {
       json["macOrigin"] = myMac;
       json["origin"] = BOARD_NUM;
-      json["timeMicros"] = micros();
+      json["timeMicros"] = now;
       json["coreTemp"] = temperatureRead();
       json["type"] = END_COUNT_TYPE;
+      json["experiment"] = experiment;
+      json["position"] = POSITION;
       serializeJson(json, message.json, sizeof(message.json));
       esp_err_t result = esp_now_send(masterAddress, (uint8_t *) &message, sizeof(message));
       started = !started;
+      experiment++;
     }
-    lastDebounce = millis();
+    lastDebounce = micros();
   }
   portEXIT_CRITICAL(&synch);
 }
@@ -70,5 +76,5 @@ void setup() {
  
 void loop() {   
   esp_err_t result = sendHeartBeat();
-  delay(10000);
+  delay(60000);
 }
