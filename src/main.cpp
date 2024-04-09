@@ -1,6 +1,11 @@
 #include <WiFi.h>
 #include  "main.h"
 
+void restartByMasterCommand() {
+  delay(RESTART_TIME);
+  esp_restart();
+}
+
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
   if (status == ESP_NOW_SEND_SUCCESS) {
@@ -14,30 +19,33 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   }
 }
 
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
+  memcpy(&masterMessage, incomingData, sizeof(masterMessage));
+  if (masterMessage.restart == true) {
+    restartByMasterCommand();
+  }
+}
+
 void IRAM_ATTR startCountTime() {
   portENTER_CRITICAL(&synch);
   unsigned long now = micros();
   if ((micros() - lastDebounce) > debounceTime) {
     if (started == false) {
-      json["macOrigin"] = myMac;
-      json["origin"] = BOARD_NUM;
-      json["timeMicros"] = now;
-      json["coreTemp"] = temperatureRead();
-      json["type"] = START_COUNT_TYPE;
-      json["experiment"] = experiment;
-      json["position"] = POSITION;
-      serializeJson(json, message.json, sizeof(message.json));
+      message.origin = BOARD_NUM;
+      message.timeMicros = now;
+      message.coreTemp = temperatureRead();
+      message.type = START_COUNT_TYPE;
+      message.experiment = experiment;
+      message.position = POSITION;
       esp_err_t result = esp_now_send(masterAddress, (uint8_t *) &message, sizeof(message));
       started = !started;
     }else {
-      json["macOrigin"] = myMac;
-      json["origin"] = BOARD_NUM;
-      json["timeMicros"] = now;
-      json["coreTemp"] = temperatureRead();
-      json["type"] = END_COUNT_TYPE;
-      json["experiment"] = experiment;
-      json["position"] = POSITION;
-      serializeJson(json, message.json, sizeof(message.json));
+      message.origin = BOARD_NUM;
+      message.timeMicros = now;
+      message.coreTemp = temperatureRead();
+      message.type = END_COUNT_TYPE;
+      message.experiment = experiment;
+      message.position = POSITION;
       esp_err_t result = esp_now_send(masterAddress, (uint8_t *) &message, sizeof(message));
       started = !started;
       experiment++;
@@ -51,7 +59,8 @@ void setup() {
   Serial.begin(115200);
  
   WiFi.mode(WIFI_STA);
-  myMac = WiFi.macAddress();
+  WiFi.disconnect();
+  WiFi.macAddress(message.macOrigin);
 
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
@@ -59,6 +68,7 @@ void setup() {
   }
 
   esp_now_register_send_cb(OnDataSent);
+  esp_now_register_recv_cb(OnDataRecv);
   
   memcpy(peerInfo.peer_addr, masterAddress, 6);
   peerInfo.channel = 0;  
@@ -76,5 +86,5 @@ void setup() {
  
 void loop() {   
   esp_err_t result = sendHeartBeat();
-  delay(60000);
+  delay(HEARTBEAT_INTERVAL);
 }
