@@ -2,8 +2,7 @@
 #include <esp_now.h>
 #include <ArduinoJson.h>
 
-#define BOARD_NUM 4
-#define POSITION OUTSIDE
+#define BOARD_NUM 10
 
 #define INSIDE 1
 #define OUTSIDE 0
@@ -12,8 +11,8 @@
 #define END_COUNT_TYPE 3
 #define MANAGER_TYPE 4
 #define START_PIN 18
-#define ON_BOARD_LED 2
-#define HEARTBEAT_INTERVAL 60000
+#define POSITION_PIN 23
+#define HEARTBEAT_INTERVAL 120000
 #define RESTART_TIME 2000
 
 portMUX_TYPE synch = portMUX_INITIALIZER_UNLOCKED;
@@ -22,10 +21,21 @@ const unsigned long debounceTime = 500000;
 volatile unsigned long lastDebounce = 0;
 volatile bool started = false;
 
-uint8_t masterAddress[6] = { 0x24, 0x6F, 0x28, 0x79, 0xD7, 0xC4 };
+uint8_t masterAddress[6] =  { 0x48, 0xE7, 0x29, 0xC9, 0x2B, 0x58 };  // 1
+// uint8_t masterAddress[6] =  { 0xA8, 0x42, 0xE3, 0x59, 0x83, 0x38 };  // 2
+// uint8_t masterAddress[6] =  { 0x48, 0xE7, 0x29, 0xC9, 0xED, 0x00 };  // 3
+// uint8_t masterAddress[6] =  { 0x48, 0xE7, 0x29, 0xCA, 0x15, 0xD0 };  // 4
+// uint8_t masterAddress[6] =  { 0xC8, 0xF0, 0x9E, 0xF5, 0x17, 0x94 };  // 5
+// uint8_t masterAddress[6] =  { 0xC8, 0xF0, 0x9E, 0xF8, 0x72, 0x70 };  // 6
+// uint8_t masterAddress[6] =  { 0xC8, 0xF0, 0x9E, 0xF7, 0x61, 0x98 };  // 7
+// uint8_t masterAddress[6] =  { 0x7C, 0x9E, 0xBD, 0x3A, 0x01, 0x04 };  // 8
+// uint8_t masterAddress[6] =  { 0xC8, 0xF0, 0x9E, 0xF8, 0x6A, 0x98 };  // 9
+// uint8_t masterAddress[6] =  { 0xC8, 0xF0, 0x9E, 0xF7, 0x69, 0x98 }; // 10
+
 esp_now_peer_info_t peerInfo;
 
 unsigned long experiment = 1; 
+unsigned long loopCount = 1; 
 
 typedef struct Message {
   int origin;
@@ -54,7 +64,6 @@ esp_err_t sendHeartBeat() {
   message.coreTemp = temperatureRead();
   message.type = HEARTBEAT_TYPE;
   message.experiment = experiment;
-  message.position = POSITION;
   esp_err_t result = esp_now_send(masterAddress, (uint8_t *) &message, sizeof(message));
 
   return result;

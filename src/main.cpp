@@ -36,7 +36,6 @@ void IRAM_ATTR startCountTime() {
       message.coreTemp = temperatureRead();
       message.type = START_COUNT_TYPE;
       message.experiment = experiment;
-      message.position = POSITION;
       esp_err_t result = esp_now_send(masterAddress, (uint8_t *) &message, sizeof(message));
       started = !started;
     }else {
@@ -45,7 +44,6 @@ void IRAM_ATTR startCountTime() {
       message.coreTemp = temperatureRead();
       message.type = END_COUNT_TYPE;
       message.experiment = experiment;
-      message.position = POSITION;
       esp_err_t result = esp_now_send(masterAddress, (uint8_t *) &message, sizeof(message));
       started = !started;
       experiment++;
@@ -56,6 +54,15 @@ void IRAM_ATTR startCountTime() {
 }
 
 void setup() {
+  pinMode(POSITION_PIN, INPUT);
+  if (POSITION_PIN == HIGH) {
+    message.position = INSIDE;
+  } else if (POSITION_PIN == LOW) {
+    message.position = OUTSIDE;
+  } else {
+    message.position = OUTSIDE;
+  }
+
   Serial.begin(115200);
  
   WiFi.mode(WIFI_STA);
@@ -85,6 +92,7 @@ void setup() {
 }
  
 void loop() {   
+  loopCount++;
   esp_err_t result = sendHeartBeat();
   delay(HEARTBEAT_INTERVAL);
 }
